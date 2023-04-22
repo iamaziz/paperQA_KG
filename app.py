@@ -28,6 +28,8 @@ def header():
     """
     st.markdown(subheader, unsafe_allow_html=True)
 
+    # st.sidebar.image("assets/graph.jpg", width=50)
+
     st.sidebar.caption("Powered by")
     st.sidebar.markdown("> **SemanticScholar** | **LangChain Graph** | **OpenAI GPT**")
     st.sidebar.image("assets/openai.jpg", width=300)
@@ -54,15 +56,16 @@ class UI:
             "Generative AI applications in medical health",
             "LLMs evaluation methods",
         ]
-        str_topics = ", ".join([f"**_{s}_**" for s in sample_topics])
-        msg_header = f"Enter a topic `.e.g.` {str_topics}  ... etc."
+        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics])
+        msg_header = f"Enter a topic `.e.g.` {str_topics}, ... etc."
         paper_topic = st.text_input(msg_header, placeholder=msg_placeholder)
         if not paper_topic or not hasattr(st.session_state, "paper_topic"):
-            picker = st.button("Pick a random topic")
+            picker = st.button("Pick a random topic", on_click=st.snow)
             if picker:
                 paper_topic = np.random.choice(sample_topics)
-                st.write(f"picked topic: **_{paper_topic}_**")
                 st.session_state.paper_topic = paper_topic
+        else:
+            st.session_state.paper_topic = paper_topic
 
         if "paper_topic" in st.session_state:
             paper_topic = st.session_state.paper_topic
@@ -75,6 +78,7 @@ class UI:
         else:
             return
 
+        st.write(f"_Topic_: **_{paper_topic}_**")
         st.write("> ### Result papers")
         st.write(df)
         with st.expander("Show abstracts"):
@@ -109,14 +113,17 @@ class UI:
 
         # -- ask questions
         paperqa = st.session_state.paperqa
-        st.success("Ready to answer questions about the papers above")
+        st.info("WIP: Ready to answer questions about the papers above", icon="👷")
         question = st.text_input("Ask a question about the papers")
         st.write(paperqa)
         st.write(paperqa.docs.docs)
         if question:
-            question = "What type of cancer is discussed in the text?"
+            # question = "What type of cancer is discussed in the text?"
+            st.write(f"> **Question**: {question}")
+            cache_info = paperqa.ask.cache_info()
+            st.write(f"Cache info: {cache_info}")
             answer = paperqa.ask(question)
-            st.write(answer)
+            st.write(f"> **Answer**: {answer}")
 
     @staticmethod
     @st.cache_resource
@@ -176,7 +183,7 @@ class UI:
         """
         triplets = graph.get_triples()
         # TODO: save the graph https://python.langchain.com/en/latest/modules/chains/index_examples/graph_qa.html#save-the-graph
-        st.success("Knowledge Graph is ready")
+        st.success("Knowledge Graph is ready")  # , icon="✅")
         st.write(f"> Number of the extracted triplets: {len(triplets)}")
         df = pd.DataFrame(triplets, columns=["subject", "object", "predicate"])
         arrange_cols = ["subject", "predicate", "object"]
