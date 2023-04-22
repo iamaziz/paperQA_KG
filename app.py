@@ -22,17 +22,21 @@ def header():
     # st.header("Q/A Chatbot & Knowledge Graph Visualizer")
     head = st.columns(2)
     st.header("Knowledge Graphs from Scientific Literature")
-    st.markdown("> Build and visualize graphs graphs from research paper abstracts")
-    st.sidebar.markdown(
-        "> Powered by<br>**LangChain Graph** & **OpenAI GPT**", unsafe_allow_html=True
-    )
+    st.markdown("> Build and visualize graphs from research paper abstracts")
+    st.sidebar.caption("Powered by")
+    st.sidebar.markdown("> **SemanticScholar** | **LangChain Graph** | **OpenAI GPT**")
     st.sidebar.image("assets/openai.jpg", width=300)
     st.sidebar.image("assets/langchain.jpg", width=300)
+    # st.sidebar.image("assets/streamlit.png", width=100)
+    st.sidebar.image("assets/semanticscholar.png", width=300)
     st.markdown("---")
     st.sidebar.markdown("---")
     st.sidebar.info(
         "**Demo** result currently constrained by **OpenAI API** model's maximum context length of 4097 tokens."
     )
+    api_key = st.sidebar.text_input("Enter your OpenAI API key", type="password")
+    if api_key:
+        os.environ["OPENAI_API_KEY"] = api_key
 
 
 class UI:
