@@ -19,10 +19,14 @@ from semanticscholar import SemanticScholar  # pip install semanticscholar
 
 def header():
     st.set_page_config(layout="wide")
-    # st.header("Q/A Chatbot & Knowledge Graph Visualizer")
+    st.header("PaperQA Chatbot & Knowledge Graph For Scientific Literature")
     head = st.columns(2)
-    st.header("Knowledge Graphs from Scientific Literature")
-    st.markdown("> Build and visualize graphs from research paper abstracts")
+    # st.header("Knowledge Graphs from Scientific Literature")
+    subheader = """
+    > **_PaperQA chatbot_** and **_Build and visualize knowelge graphs_** from research paper abstracts
+    """
+    st.markdown(subheader, unsafe_allow_html=True)
+
     st.sidebar.caption("Powered by")
     st.sidebar.markdown("> **SemanticScholar** | **LangChain Graph** | **OpenAI GPT**")
     st.sidebar.image("assets/openai.jpg", width=300)
@@ -42,12 +46,11 @@ def header():
 class UI:
     def __init__(self):
         header()
-        msg = "Search papers from literature"
-        paper_topic = st.text_input(
-            "Enter a topic e.g. Quantum Spintronics", placeholder=msg
-        )
+        msg_placeholder = "Search papers from literature"
+        msg_header = "Enter a topic `e.g.` '**_Quantum Spintronics_**', '**_economy recession reasons_**, '**_Generative AI applications in medical health_**', or '**_LLMs evaluation methods_**' ... etc."
+        paper_topic = st.text_input(msg_header, placeholder=msg_placeholder)
         if paper_topic:
-            with st.spinner("Searching papers from literature"):
+            with st.spinner("Searching papers from literature (SemanticScholar API)"):
                 papers = self._get_papers(paper_topic)
             df = pd.DataFrame(papers)
             docs = df["abstract"].tolist()
@@ -58,18 +61,20 @@ class UI:
         with st.expander("Show abstracts"):
             st.write(docs)
 
-            if st.checkbox("store locally"):
-                paths, bulk_path, big_string = self.store_document_locally(papers)
-
         # -- Apps -- #
-        # if st.checkbox("Start Chatbot"):
-        #     # -- PaperQA
-        #     self._build_paperqa(paths)
+        tabs = st.tabs(["AbstractQA Chatbot", "Abstracts Knowledge Graph"])
 
-        if st.checkbox("Build and Visualize Knowledge Graph"):
-            # -- Knowledge Graph
-            res = self._build_knowledge_graph(docs)
-            self._render_knowledge_graph(res)
+        with tabs[0]:
+            if st.checkbox("Start Chatbot"):
+                paths, bulk_path, big_string = self.store_document_locally(papers)
+                # -- PaperQA
+                self._build_paperqa(paths)
+
+        with tabs[1]:
+            if st.checkbox("Build and Visualize Knowledge Graph"):
+                # -- Knowledge Graph
+                res = self._build_knowledge_graph(docs)
+                self._render_knowledge_graph(res)
 
     def _build_paperqa(self, paths: List[str], papers: List[str] = None):
         # -- initialize PaperQA index
@@ -103,8 +108,18 @@ class UI:
 
         # Limiting to 42 papers for now, knowledge graph triplets is a bit intesive at the moment
         # -- This model's maximum context length is 4097 tokens
-        text = " ".join([txt for txt in abstracts[:20] if txt])
-        graph = index_creator.from_text(text)
+        MAX_PAPERS = 20
+        try:
+            text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
+            graph = index_creator.from_text(text)
+        except Exception as e:
+            MAX_PAPERS = 10
+            text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
+            graph = index_creator.from_text(text)
+        except Exception as e:
+            MAX_PAPERS = 10
+            text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
+            graph = index_creator.from_text(text)
         return graph
 
     @staticmethod
@@ -117,8 +132,11 @@ class UI:
         if not os.path.exists("docs"):
             os.mkdir("docs")
         for doc in docs:
+            import re
+
             year, title, abstract = doc.year, doc.title, doc.abstract
-            with open(f"docs/{year}_{'_'.join(title.split())}.txt", "w") as f:
+            clean_title = "_".join(re.findall(r"[a-zA-Z]+", title))
+            with open(f"docs/{year}_{clean_title}.txt", "w") as f:
                 f.write(f"{title} {abstract}")
 
         paths = glob("docs/*.txt")
@@ -139,35 +157,41 @@ class UI:
         """
         triplets = graph.get_triples()
         # TODO: save the graph https://python.langchain.com/en/latest/modules/chains/index_examples/graph_qa.html#save-the-graph
-
+        st.success("Knowledge Graph is ready")
         st.write(f"> Number of the extracted triplets: {len(triplets)}")
         df = pd.DataFrame(triplets, columns=["subject", "object", "predicate"])
         arrange_cols = ["subject", "predicate", "object"]
         df = df[arrange_cols]
-        with st.expander("View raw triplets"):
-            st.write(triplets)
-        with st.expander("View triplets as dataframe"):
-            st.write(df)
+
+        with st.expander("View triplets"):
+            cols = st.columns(2)
+            with cols[0]:
+                st.dataframe(df, use_container_width=True, height=669)
+            with cols[1]:
+                st.write(triplets)
 
         # -- visualize graph
-
         nodes = []
         edges = []
         seen = set()
         for triple in triplets:
             h, t, r = triple
             if not h in seen:
-                nodes.append(Node(id=h, label=h, size=10, shape="star"))
+                nodes.append(
+                    Node(id=h, label=h, size=14, shape="diamond")
+                )  # , color="green"))
                 seen.add(h)
             if not t in seen:
-                nodes.append(Node(id=t, label=t, size=10, shape="diamond"))
+                nodes.append(Node(id=t, label=t, size=10, shape="star", color="green"))
                 seen.add(t)
 
             edges.append(Edge(source=h, target=t, label=r, size=5))
 
-        config = Config(width=1200, height=1200, directed=True, physics=True)
+        config = Config(
+            width=1200, height=1200, directed=True, physics=True
+        )  # , hierarchical=True)
 
-        with st.expander("View knowledge graph"):
+        with st.expander("View graph"):
             graph = agraph(nodes=nodes, edges=edges, config=config)
 
 
