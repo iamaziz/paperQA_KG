@@ -14,7 +14,7 @@ from paperqa import Docs  # pip install paper-qa
 from semanticscholar import SemanticScholar  # pip install semanticscholar
 
 
-os.environ["OPENAI_ORG_ID"] = "org-6kZ5XQXVZQXQXQXQXQXQXQXQXQXQXQXQXQXQXQX"
+# os.environ["OPENAI_ORG_ID"] = "org-6kZ5XQXVZQXQXQXQXQXQXQXQXQXQXQXQXQXQXQX"
 
 
 def header():
