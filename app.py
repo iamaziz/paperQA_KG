@@ -55,8 +55,9 @@ class UI:
             "economy recession reasons",
             "Generative AI applications in medical health",
             "LLMs evaluation methods",
+            "medical treatment for alzheimer's",
         ]
-        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics])
+        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:-1]])
         msg_header = f"Enter a topic `.e.g.` {str_topics}, ... etc."
         paper_topic = st.text_input(msg_header, placeholder=msg_placeholder)
         if not paper_topic or not hasattr(st.session_state, "paper_topic"):
@@ -142,8 +143,8 @@ class UI:
             MAX_PAPERS = 10
             text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
             graph = index_creator.from_text(text)
-        except Exception as e:
-            MAX_PAPERS = 10
+        finally:
+            MAX_PAPERS = 5
             text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
             graph = index_creator.from_text(text)
         return graph
