@@ -5,8 +5,11 @@ from functools import lru_cache
 from typing import List, Tuple
 from collections import namedtuple
 
-import pandas as pd
+from langchain.indexes import GraphIndexCreator  # pip install langchain
+from langchain.llms import OpenAI  # pip install langchain
+import pandas as pd  # pip install pandas
 import streamlit as st  # pip install streamlit
+from streamlit_agraph import agraph, Node, Edge, Config  # pip install streamlit-agraph
 from paperqa import Docs  # pip install paper-qa
 from semanticscholar import SemanticScholar  # pip install semanticscholar
 
@@ -90,12 +93,7 @@ class UI:
     @staticmethod
     @st.cache_resource
     def _build_knowledge_graph(abstracts):
-        """Build knowledge graph from abstracts
-        see: https://github.com/ChrisDelClea/streamlit-agraph#example-app
-        """
-        from langchain.indexes import GraphIndexCreator
-        from langchain.llms import OpenAI
-
+        """Build knowledge graph from abstracts using LangChain Graph"""
         # -- initialize GraphIndexCreator
         index_creator = GraphIndexCreator(llm=OpenAI(temperature=0))
 
@@ -132,7 +130,13 @@ class UI:
         return paths, bulk_path, big_string
 
     def _render_knowledge_graph(self, graph):
+        """Render knowledge graph using streamlit-agraph
+        see: https://github.com/ChrisDelClea/streamlit-agraph#example-app
+        """
         triplets = graph.get_triples()
+        # TODO: save the graph https://python.langchain.com/en/latest/modules/chains/index_examples/graph_qa.html#save-the-graph
+
+        st.write(f"> Number of the extracted triplets: {len(triplets)}")
         df = pd.DataFrame(triplets, columns=["subject", "object", "predicate"])
         arrange_cols = ["subject", "predicate", "object"]
         df = df[arrange_cols]
@@ -142,7 +146,6 @@ class UI:
             st.write(df)
 
         # -- visualize graph
-        from streamlit_agraph import agraph, Node, Edge, Config
 
         nodes = []
         edges = []
