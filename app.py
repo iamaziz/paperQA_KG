@@ -8,6 +8,7 @@ from collections import namedtuple
 from langchain.indexes import GraphIndexCreator  # pip install langchain
 from langchain.llms import OpenAI  # pip install langchain
 import pandas as pd  # pip install pandas
+import numpy as np  # pip install numpy
 import streamlit as st  # pip install streamlit
 from streamlit_agraph import agraph, Node, Edge, Config  # pip install streamlit-agraph
 from paperqa import Docs  # pip install paper-qa
@@ -47,8 +48,25 @@ class UI:
     def __init__(self):
         header()
         msg_placeholder = "Search papers from literature"
-        msg_header = "Enter a topic `e.g.` '**_Quantum Spintronics_**', '**_economy recession reasons_**, '**_Generative AI applications in medical health_**', or '**_LLMs evaluation methods_**' ... etc."
+        sample_topics = [
+            "Quantum Spintronics",
+            "economy recession reasons",
+            "Generative AI applications in medical health",
+            "LLMs evaluation methods",
+        ]
+        str_topics = ", ".join([f"**_{s}_**" for s in sample_topics])
+        msg_header = f"Enter a topic `.e.g.` {str_topics}  ... etc."
         paper_topic = st.text_input(msg_header, placeholder=msg_placeholder)
+        if not paper_topic or not hasattr(st.session_state, "paper_topic"):
+            picker = st.button("Pick a random topic")
+            if picker:
+                paper_topic = np.random.choice(sample_topics)
+                st.write(f"picked topic: **_{paper_topic}_**")
+                st.session_state.paper_topic = paper_topic
+
+        if "paper_topic" in st.session_state:
+            paper_topic = st.session_state.paper_topic
+
         if paper_topic:
             with st.spinner("Searching papers from literature (SemanticScholar API)"):
                 papers = self._get_papers(paper_topic)
@@ -57,12 +75,13 @@ class UI:
         else:
             return
 
+        st.write("> ### Result papers")
         st.write(df)
         with st.expander("Show abstracts"):
             st.write(docs)
 
         # -- Apps -- #
-        tabs = st.tabs(["AbstractQA Chatbot", "Abstracts Knowledge Graph"])
+        tabs = st.tabs(["QA Chatbot", "Knowledge Graph"])
 
         with tabs[0]:
             if st.checkbox("Start Chatbot"):
@@ -166,7 +185,7 @@ class UI:
         with st.expander("View triplets"):
             cols = st.columns(2)
             with cols[0]:
-                st.dataframe(df, use_container_width=True, height=669)
+                st.dataframe(df, use_container_width=True, height=769)
             with cols[1]:
                 st.write(triplets)
 
@@ -191,7 +210,7 @@ class UI:
             width=1200, height=1200, directed=True, physics=True
         )  # , hierarchical=True)
 
-        with st.expander("View graph"):
+        with st.expander("Visualize graph"):
             graph = agraph(nodes=nodes, edges=edges, config=config)
 
 
