@@ -52,16 +52,18 @@ class UI:
         msg_placeholder = "Search papers from literature"
         sample_topics = [
             "Quantum Spintronics",
-            "economy recession reasons",
+            "economy recession causes",
             "Generative AI applications in medical health",
             "LLMs evaluation methods",
+            "economy recession reasons",
             "medical treatment for alzheimer's",
+            "Risk of global recession in 2023",
         ]
-        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:-1]])
+        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:4]])
         msg_header = f"Enter a topic `.e.g.` {str_topics}, ... etc."
         paper_topic = st.text_input(msg_header, placeholder=msg_placeholder)
         if not paper_topic or not hasattr(st.session_state, "paper_topic"):
-            picker = st.button("Pick a random topic", on_click=st.snow)
+            picker = st.button("Pick a random topic")  # , on_click=st.snow)
             if picker:
                 paper_topic = np.random.choice(sample_topics)
                 st.session_state.paper_topic = paper_topic
@@ -72,6 +74,7 @@ class UI:
             paper_topic = st.session_state.paper_topic
 
         if paper_topic:
+            st.write(f"_Topic_: **_{paper_topic}_**")
             with st.spinner("Searching papers from literature (SemanticScholar API)"):
                 papers = self._get_papers(paper_topic)
             df = pd.DataFrame(papers)
@@ -79,9 +82,9 @@ class UI:
         else:
             return
 
-        st.write(f"_Topic_: **_{paper_topic}_**")
         st.write("> ### Result papers")
-        st.write(df)
+        st.write(f"`{df.shape}`", df)
+
         with st.expander("Show abstracts"):
             st.write(docs)
 
@@ -133,20 +136,21 @@ class UI:
         # -- initialize GraphIndexCreator
         index_creator = GraphIndexCreator(llm=OpenAI(temperature=0))
 
-        # Limiting to 42 papers for now, knowledge graph triplets is a bit intesive at the moment
-        # -- This model's maximum context length is 4097 tokens
+        # Limiting papers for now, knowledge graph triplets is a bit intesive (for API usage) at the moment
+        # -- This model's (key) maximum context length is 4097 tokens
         MAX_PAPERS = 20
         try:
             text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
             graph = index_creator.from_text(text)
         except Exception as e:
-            MAX_PAPERS = 10
-            text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
-            graph = index_creator.from_text(text)
-        finally:
-            MAX_PAPERS = 5
-            text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
-            graph = index_creator.from_text(text)
+            try:  # -- try again with less papers
+                MAX_PAPERS = 10
+                text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
+                graph = index_creator.from_text(text)
+            except Exception as e:
+                MAX_PAPERS = 5
+                text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
+                graph = index_creator.from_text(text)
         return graph
 
     @staticmethod
