@@ -69,12 +69,9 @@ class UI:
             paper_topic = st.text_input("Enter a topic", placeholder=msg_placeholder)
         with col[1]:
             from_year = st.selectbox("From year", options=[i for i in range(1950, datetime.now().year + 1)], index=60)
-            # from_year = st.slider("From year", min_value=1950, max_value=datetime.now().year, value=2010)
-            # from_year = st.date_input("From", min_value=datetime(1950, 1, 1), max_value=datetime.now(), value=datetime(2010, 1, 1))
         with col[2]:
             to_year = st.selectbox("To year", options=[i for i in range(1950, datetime.now().year + 1)], index=73)
-            # to_year = st.slider("To year", min_value=1950, max_value=datetime.now().year, value=datetime.now().year)
-            # to_year = st.date_input("To", min_value=datetime(1950, 1, 1), max_value=datetime.now(), value=datetime.now())
+        assert from_year <= to_year, (st.warning("From year must be less than or equal to To year"), st.stop())
         if not paper_topic or not hasattr(st.session_state, "paper_topic"):
             picker = st.button("Pick a random topic")  # , on_click=st.snow)
             if picker:
