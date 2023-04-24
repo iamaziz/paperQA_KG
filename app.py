@@ -1,6 +1,7 @@
 import os
 from time import sleep
 from glob import glob
+from datetime import datetime
 from functools import lru_cache
 from typing import List, Tuple
 from collections import namedtuple
@@ -17,6 +18,7 @@ from semanticscholar import SemanticScholar  # pip install semanticscholar
 
 # os.environ["OPENAI_ORG_ID"] = "org-6kZ5XQXVZQXQXQXQXQXQXQXQXQXQXQXQXQXQXQX"
 
+Paper = namedtuple("Paper", ["title", "abstract", "year", "url", "authors"])
 
 def header():
     st.set_page_config(layout="wide")
@@ -24,7 +26,7 @@ def header():
     head = st.columns(2)
     # st.header("Knowledge Graphs from Scientific Literature")
     subheader = """
-    > **_PaperQA chatbot_** and **_Build and visualize knowelge graphs_** from research paper abstracts
+    > **_PaperQA chatbot_** and **_Knowelge Graphs Builder/Visualizer_** from research paper abstracts
     """
     st.markdown(subheader, unsafe_allow_html=True)
 
@@ -60,8 +62,19 @@ class UI:
             "Risk of global recession in 2023",
         ]
         str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:4]])
-        msg_header = f"Enter a topic `.e.g.` {str_topics}, ... etc."
-        paper_topic = st.text_input(msg_header, placeholder=msg_placeholder)
+        msg_header = f"Search a topic `.e.g.` {str_topics}, ... etc."
+        st.caption(msg_header)
+        col = st.columns([2, 1, 1])
+        with col[0]:
+            paper_topic = st.text_input("Enter a topic", placeholder=msg_placeholder)
+        with col[1]:
+            from_year = st.selectbox("From year", options=[i for i in range(1950, datetime.now().year + 1)], index=60)
+            # from_year = st.slider("From year", min_value=1950, max_value=datetime.now().year, value=2010)
+            # from_year = st.date_input("From", min_value=datetime(1950, 1, 1), max_value=datetime.now(), value=datetime(2010, 1, 1))
+        with col[2]:
+            to_year = st.selectbox("To year", options=[i for i in range(1950, datetime.now().year + 1)], index=73)
+            # to_year = st.slider("To year", min_value=1950, max_value=datetime.now().year, value=datetime.now().year)
+            # to_year = st.date_input("To", min_value=datetime(1950, 1, 1), max_value=datetime.now(), value=datetime.now())
         if not paper_topic or not hasattr(st.session_state, "paper_topic"):
             picker = st.button("Pick a random topic")  # , on_click=st.snow)
             if picker:
@@ -76,13 +89,13 @@ class UI:
         if paper_topic:
             st.write(f"_Topic_: **_{paper_topic}_**")
             with st.spinner("Searching papers from literature (SemanticScholar API)"):
-                papers = self._get_papers(paper_topic)
+                papers = self._get_papers(paper_topic, from_year, to_year)
             df = pd.DataFrame(papers)
             docs = df["abstract"].tolist()
         else:
             return
 
-        st.write("> ### Result papers")
+        st.write("> ### Retrieved papers")
         st.write(f"`{df.shape}`", df)
 
         with st.expander("Show abstracts"):
@@ -155,8 +168,8 @@ class UI:
 
     @staticmethod
     @st.cache_resource  # (allow_output_mutation=True)
-    def _get_papers(paper_topic: str) -> List[str]:
-        s2 = SemanticScholarSearch(paper_topic)
+    def _get_papers(paper_topic: str, from_year: int, to_year: int) -> List[Paper]:
+        s2 = SemanticScholarSearch(paper_topic, from_year, to_year)
         return s2.get_papers()
 
     def store_document_locally(self, docs: List[str]):
@@ -229,17 +242,17 @@ class UI:
 class SemanticScholarSearch:
     Paper = namedtuple("Paper", ["title", "abstract", "year", "url", "authors"])
 
-    def __init__(self, paper_topic: str, limit: int = 100):
+    def __init__(self, paper_topic: str, from_year: int, to_year: int, limit: int = 100):
         self.sch = SemanticScholar()
-        self.response = self.search_papers(paper_topic, limit=limit)
+        self.response = self.search_papers(paper_topic, from_year, to_year, limit)
 
     def get_papers(self):
         with st.spinner("Parsing papers"):
             return self.parse_response(self.response)
 
     @lru_cache(maxsize=32)
-    def search_papers(self, paper_topic: str, limit: int = 100) -> List[str]:
-        return self.sch.search_paper(paper_topic, limit=limit)
+    def search_papers(self, paper_topic: str, from_year: int, to_year: int, limit: int) -> List[str]:
+        return self.sch.search_paper(paper_topic, year=f"{from_year}-{to_year}", limit=limit)
 
     @lru_cache(maxsize=32)
     def parse_response(self, response: List[str]) -> List[Paper]:
