@@ -24,7 +24,6 @@ def header():
     st.set_page_config(layout="wide")
     st.header("PaperQA Chatbot & Knowledge Graph For Scientific Literature")
     head = st.columns(2)
-    # st.header("Knowledge Graphs from Scientific Literature")
     subheader = """
     > **_PaperQA chatbot_** and **_Knowelge Graphs Builder/Visualizer_** from research paper abstracts
     """
@@ -32,16 +31,20 @@ def header():
 
     # st.sidebar.image("assets/graph.jpg", width=50)
 
-    st.sidebar.caption("Powered by")
-    st.sidebar.markdown("> **SemanticScholar** | **LangChain Graph** | **OpenAI GPT**")
-    st.sidebar.image("assets/openai.jpg", width=300)
-    st.sidebar.image("assets/langchain.jpg", width=300)
-    # st.sidebar.image("assets/streamlit.png", width=100)
-    st.sidebar.image("assets/semanticscholar.png", width=300)
+    st.sidebar.caption("# Powered by")
+    col = st.sidebar.columns(2)
+    with col[0]:
+        st.sidebar.markdown("> **SemanticScholar** | **LangChain Graph** | **OpenAI GPT**")
+    with col[0]:
+        st.sidebar.image("assets/openai.jpg", width=200)
+    with col[0]:
+        st.sidebar.image("assets/langchain.jpg", width=200)
+    with col[0]:
+        st.sidebar.image("assets/semanticscholar.png", width=200)
     st.markdown("---")
     st.sidebar.markdown("---")
     st.sidebar.info(
-        "**Demo** result currently constrained by **OpenAI API** model's maximum context length of 4097 tokens."
+        "**Demo** result currently constrained by **OpenAI API** model's maximum context length of 8192 tokens."
     )
     api_key = st.sidebar.text_input("Enter your OpenAI API key", type="password")
     if api_key:
@@ -54,6 +57,7 @@ class UI:
         msg_placeholder = "Search papers from literature"
         sample_topics = [
             "Quantum Spintronics",
+            "protein structure folding",
             "economy recession causes",
             "Generative AI applications in medical health",
             "LLMs evaluation methods",
@@ -61,7 +65,7 @@ class UI:
             "medical treatment for alzheimer's",
             "Risk of global recession in 2023",
         ]
-        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:4]])
+        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:5]])
         msg_header = f"Search a topic `.e.g.` {str_topics}, ... etc."
         st.caption(msg_header)
         col = st.columns([2, 1, 1])
@@ -105,62 +109,76 @@ class UI:
             if st.checkbox("Start Chatbot"):
                 paths, bulk_path, big_string = self.store_document_locally(papers)
                 # -- PaperQA
-                self._build_paperqa(paths)
+                paperqa = self._build_paperqa(paths[:7])
+                self._chatbot(paperqa)
 
         with tabs[1]:
             if st.checkbox("Build and Visualize Knowledge Graph"):
                 # -- Knowledge Graph
-                res = self._build_knowledge_graph(docs)
+                try:
+                    res = self._build_knowledge_graph(docs)
+                except Exception as e:
+                    try:
+                        res = self._build_knowledge_graph(docs, max_tokens=5000, max_papers=10)
+                    except Exception as e:
+                        res = self._build_knowledge_graph(docs, max_tokens=1000, max_papers=5)
                 self._render_knowledge_graph(res)
-
-    def _build_paperqa(self, paths: List[str], papers: List[str] = None):
-        # -- initialize PaperQA index
-        if not hasattr(st.session_state, "index_is_built"):
-            st.session_state.index_is_built = False
-        if not st.session_state.index_is_built or not hasattr(
-            st.session_state, "paperqa"
-        ):
-            st.session_state.paperqa = PaperQA()
-            with st.spinner("Building index"):
-                st.session_state.paperqa.build_index(tuple(paths[:3]))  # , papers[:3])
-                st.session_state.index_is_built = True
-
-        # -- ask questions
-        paperqa = st.session_state.paperqa
-        st.info("WIP: Ready to answer questions about the papers above", icon="👷")
-        question = st.text_input("Ask a question about the papers")
-        st.write(paperqa)
-        st.write(paperqa.docs.docs)
-        if question:
-            # question = "What type of cancer is discussed in the text?"
-            st.write(f"> **Question**: {question}")
-            cache_info = paperqa.ask.cache_info()
-            st.write(f"Cache info: {cache_info}")
-            answer = paperqa.ask(question)
-            st.write(f"> **Answer**: {answer}")
 
     @staticmethod
     @st.cache_resource
-    def _build_knowledge_graph(abstracts):
+    def _build_paperqa(paths: List[str], papers: List[str] = None):
+        # -- initialize PaperQA index
+        # st.write(paths)
+        # if not hasattr(st.session_state, "index_is_built"):
+        #     st.session_state.index_is_built = False
+        # if not st.session_state.index_is_built or not hasattr(
+        #     st.session_state, "paperqa"
+        # ):
+        #     st.session_state.paperqa = PaperQA()
+        #     with st.spinner("Building index"):
+        #         st.session_state.paperqa.build_index(tuple(paths[:3]))
+        #         st.session_state.index_is_built = True
+        # paperqa = st.session_state.paperqa
+
+        paperqa = PaperQA()
+        paperqa.build_index(tuple(paths))
+        return paperqa
+    
+    def _chatbot(self, paperqa):
+        # # -- ask questions
+        # st.info("WIP: Ready to answer questions about the papers above", icon="👷")
+        question = st.text_input("Ask a question about the papers")
+        if question:
+            # question = "What type of cancer is discussed in the text?"
+            # st.write(f"> **Question**: {question}")
+            st.write(f"`{paperqa.ask.cache_info()}`")
+            answer = paperqa.ask(question)
+            st.markdown(answer)
+        
+        with st.expander("View docs object"):
+            st.write(paperqa.docs)
+        with st.expander("View indexed papers"):
+            st.write(paperqa.docs.docs)
+            
+
+    @staticmethod
+    @st.cache_resource
+    def _build_knowledge_graph(abstracts, max_tokens=7500, max_papers=20, max_retries=12):
         """Build knowledge graph from abstracts using LangChain Graph"""
         # -- initialize GraphIndexCreator
-        index_creator = GraphIndexCreator(llm=OpenAI(temperature=0))
-
+        # index_creator = GraphIndexCreator(llm=OpenAI(model_name="gpt-4", temperature=0))#, max_context_length=4097))
+        # try:
+        MAX_TOKENS = max_tokens
+        MAX_RETRIES = max_retries
+        index_creator = GraphIndexCreator(llm=OpenAI(model_name="gpt-4", max_tokens=MAX_TOKENS, temperature=0, max_retries=MAX_RETRIES))#, max_context_length=4097))
+            
         # Limiting papers for now, knowledge graph triplets is a bit intesive (for API usage) at the moment
         # -- This model's (key) maximum context length is 4097 tokens
-        MAX_PAPERS = 20
-        try:
-            text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
-            graph = index_creator.from_text(text)
-        except Exception as e:
-            try:  # -- try again with less papers
-                MAX_PAPERS = 10
-                text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
-                graph = index_creator.from_text(text)
-            except Exception as e:
-                MAX_PAPERS = 5
-                text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
-                graph = index_creator.from_text(text)
+        MAX_PAPERS = max_papers
+        # st.write(os.environ["OPENAI_API_KEY"])
+        text = " ".join([txt for txt in abstracts[:MAX_PAPERS] if txt])
+        graph = index_creator.from_text(text)
+
         return graph
 
     @staticmethod
@@ -226,11 +244,11 @@ class UI:
                 nodes.append(Node(id=t, label=t, size=10, shape="star", color="green"))
                 seen.add(t)
 
-            edges.append(Edge(source=h, target=t, label=r, size=5))
+            edges.append(Edge(source=h, target=t, label=r, size=5, color="red"))
 
         config = Config(
-            width=1200, height=1200, directed=True, physics=True
-        )  # , hierarchical=True)
+            width=2000, height=1200, directed=True, physics=True
+        , hierarchical=True)
 
         with st.expander("Visualize graph"):
             graph = agraph(nodes=nodes, edges=edges, config=config)
@@ -277,7 +295,7 @@ class PaperQA:
         self.docs = Docs()
         # self.build_index(my_docs)
 
-    @lru_cache(maxsize=32)
+    # @lru_cache(maxsize=32)
     def build_index(self, my_docs_paths: Tuple[str]):  # , citation: List[str] = None):
         for path in my_docs_paths:  # ): #, my_docs):
             sleep(5)
