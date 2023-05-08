@@ -16,37 +16,42 @@ from paperqa import Docs  # pip install paper-qa
 from semanticscholar import SemanticScholar  # pip install semanticscholar
 
 
-# os.environ["OPENAI_ORG_ID"] = "org-6kZ5XQXVZQXQXQXQXQXQXQXQXQXQXQXQXQXQXQX"
 
 Paper = namedtuple("Paper", ["title", "abstract", "year", "url", "authors"])
 
 def header():
     st.set_page_config(layout="wide")
-    st.header("PaperQA Chatbot & Knowledge Graph For Scientific Literature")
-    head = st.columns(2)
+    st.sidebar.image("assets/EYP.png", width=250, use_column_width=True) #, caption="EYP")
+    st.sidebar.caption("EYP | 2023")
+    st.sidebar.markdown("""> ### **Q***uantitative*<br>**S***cientific*<br>**S***olutions*<br>QS2""", unsafe_allow_html=True)
+    st.header("Scientific Literature _Distilled_ ⚗️", anchor="top")
+
+    st.markdown("#### <ins>**3 in 1**</ins>: _Distlling scientific literature abstracts about a specific topic_", unsafe_allow_html=True)
     subheader = """
-    > **_PaperQA chatbot_** and **_Knowelge Graphs Builder/Visualizer_** from research paper abstracts
+    #####  through **_`Slide Deck Generator`_** | **_`PaperQA chatbot`_** | **_`Knowelge Graphs Builder/Visualizer`_**
+    
     """
     st.markdown(subheader, unsafe_allow_html=True)
+    # st.markdown(subheader, unsafe_allow_html=True)
 
     # st.sidebar.image("assets/graph.jpg", width=50)
-
+    # st.sidebar.image("assets/EYP.jpg", width=200)
     st.sidebar.caption("# Powered by")
     col = st.sidebar.columns(2)
     with col[0]:
-        st.sidebar.markdown("> **SemanticScholar** | **LangChain Graph** | **OpenAI GPT**")
+        st.sidebar.markdown("**SemanticScholar** | **LangChain Graph** | **OpenAI GPT**")
     with col[0]:
-        st.sidebar.image("assets/openai.jpg", width=200)
+        st.sidebar.image("assets/openai.jpg", width=150)
     with col[0]:
-        st.sidebar.image("assets/langchain.jpg", width=200)
+        st.sidebar.image("assets/langchain.jpg", width=150)
     with col[0]:
-        st.sidebar.image("assets/semanticscholar.png", width=200)
+        st.sidebar.image("assets/semanticscholar.png", width=150)
     st.markdown("---")
     st.sidebar.markdown("---")
+    api_key = st.sidebar.text_input("Enter OpenAI API key", type="password")
     st.sidebar.info(
-        "**Demo** result currently constrained by **OpenAI API** model's maximum context length of 8192 tokens."
+        "**Demo** result currently constrained by **API**'s maximum context length of 8192 tokens."
     )
-    api_key = st.sidebar.text_input("Enter your OpenAI API key", type="password")
     if api_key:
         os.environ["OPENAI_API_KEY"] = api_key
 
@@ -56,23 +61,29 @@ class UI:
         header()
         msg_placeholder = "Search papers from literature"
         sample_topics = [
+            "AI Safety and Alignment",
+            "AI Ethics",
             "Quantum Spintronics",
             "protein structure folding",
             "economy recession causes",
-            "Generative AI applications in medical health",
             "LLMs evaluation methods",
+            "Generative AI applications in medical health",
+            "Financial services cybersecurity for quantum computing",
             "economy recession reasons",
             "medical treatment for alzheimer's",
             "Risk of global recession in 2023",
+            "Trusted AI",
+            "AI Governance",
+            "Transformer architecture and LLMs"
         ]
-        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:5]])
-        msg_header = f"Search a topic `.e.g.` {str_topics}, ... etc."
+        str_topics = " `or` ".join([f"**_{s}_**" for s in sample_topics[:6]])
+        msg_header = f"Search any topic `e.g.` {str_topics}, ... etc."
         st.caption(msg_header)
         col = st.columns([2, 1, 1])
         with col[0]:
             paper_topic = st.text_input("Enter a topic", placeholder=msg_placeholder)
         with col[1]:
-            from_year = st.selectbox("From year", options=[i for i in range(1950, datetime.now().year + 1)], index=60)
+            from_year = st.selectbox("From year", options=[i for i in range(1950, datetime.now().year + 1)], index=67)
         with col[2]:
             to_year = st.selectbox("To year", options=[i for i in range(1950, datetime.now().year + 1)], index=73)
         assert from_year <= to_year, (st.warning("From year must be less than or equal to To year"), st.stop())
@@ -88,28 +99,34 @@ class UI:
             paper_topic = st.session_state.paper_topic
 
         if paper_topic:
-            st.write(f"_Topic_: **_{paper_topic}_**")
+            st.markdown(f"_Topic_: <h3>{paper_topic}</h3>", unsafe_allow_html=True)
             with st.spinner("Searching papers from literature (SemanticScholar API)"):
                 papers = self._get_papers(paper_topic, from_year, to_year)
             df = pd.DataFrame(papers)
-            docs = df["abstract"].tolist()
+            docs, urls = df["abstract"].tolist(), df["url"].tolist()
         else:
             return
 
-        st.write("> ### Retrieved papers")
-        st.write(f"`{df.shape}`", df)
+        st.markdown("---")
+        with st.expander(f"View results: {df.shape[0]} papers"):
+            st.write(f"`{df.shape}`", df)
+            # -- download dataframe
+            cols = st.columns([4, 1])
+            cols[1].download_button("Download abstracts", df.to_csv(), file_name=f"REF-{paper_topic}.csv", mime="text/csv")
 
         with st.expander("Show abstracts"):
             st.write(docs)
+        
+        st.markdown("---")
 
         # -- Apps -- #
-        tabs = st.tabs(["QA Chatbot", "Knowledge Graph"])
+        tabs = st.tabs(["_**QA Chatbot**_", "**Knowledge Graph** _(graphs generator)_", "**Deckify** _(slides generator)_"])
 
         with tabs[0]:
             if st.checkbox("Start Chatbot"):
                 paths, bulk_path, big_string = self.store_document_locally(papers)
                 # -- PaperQA
-                paperqa = self._build_paperqa(paths[:7])
+                paperqa = self._build_paperqa(paths[:5])
                 self._chatbot(paperqa)
 
         with tabs[1]:
@@ -123,6 +140,153 @@ class UI:
                     except Exception as e:
                         res = self._build_knowledge_graph(docs, max_tokens=1000, max_papers=5)
                 self._render_knowledge_graph(res)
+            
+        with tabs[2]:
+            title = "> Build slides for a presentation about **'" + paper_topic + "'** based on **top scientific papers**. Powered by OpenAI GPT."
+            st.markdown(title, unsafe_allow_html=True)
+            if st.checkbox("Deckify (_verb_ to mean generating Slide Deck)"):
+                
+                # -- Deckify (slides generator)
+                from deckify import BuildSlides
+                MAX_ABSTRACTS = 13
+                docs = docs[:MAX_ABSTRACTS] # limiting to 13 abstracts for now to avoid exceeding the API's maximum context length of 8192 tokens
+                st.session_state.selected_model = "gpt-3.5-turbo-0301"
+                builder = BuildSlides(docs, urls, paper_topic)
+                st.session_state.model = builder.model
+                prompt = builder.build_prompt(tuple(docs), urls=urls, paper_topic=paper_topic)
+
+
+                # -- view and select GPT model to use
+                with st.expander("View GPT models and select one"):
+                    available_models = builder.model.list_models()['data']
+                    model_names = [model['id'] for model in available_models]
+                    selected_model = st.selectbox("Select GPT model", options=[st.session_state.selected_model] + model_names)
+                    model_details = [model for model in available_models if model['id'] == selected_model][0]
+                    st.write(model_details)
+                    if selected_model != st.session_state.selected_model:
+                        st.session_state.selected_model = selected_model
+                        from gpt import OpenAIService
+                        builder.model = OpenAIService(model_name=selected_model)
+                        builder.model_name = selected_model
+                        st.session_state.model = builder.model
+                    # st.write(available_models)# [selected_model])
+
+                # -- deckify
+                with st.expander("View prompt"):
+                    st.code(prompt) #, language="text")
+                with st.spinner("Deckifying"):
+                    res, time_taken = builder.deckify(prompt)
+                    res = res.choices[0].message.content
+                
+                
+                with st.expander("View deckified result"):
+                    if st.checkbox("raw"):
+                        st.code(res)
+                    else:
+                        st.write(res)
+                # st.markdown(f"> <sup>Time to deckify: {time_taken:.2f} seconds</sup>", unsafe_allow_html=True)
+                msg = f"Created in `{time_taken:.2f}` seconds"
+                st.markdown(f"> <sup>{msg}</sup>", unsafe_allow_html=True)
+
+                # -- slides string formatting and saving
+                markdown = f"""% {paper_topic}
+% Scientific Literature Distilled | _{datetime.now().date()}_
+% Covering literature between {from_year} and {to_year} <br> **By** `{builder.model_name}` <br> **Generated in** `{time_taken:.2f}`seconds
+"""
+                markdown += res
+                markdown_path = "slides.md"
+                slides_path = "index.html"
+                with open(markdown_path, "w") as f:
+                    f.write(markdown)
+                
+                # -- convert to slides
+                # themes: https://revealjs.com/themes/
+                SLIDES_THEMES = ["serif", "simple", "sky", "beige", "blood", "moon", "night", "solarized", "white", "league", "dracula", "black"]
+                theme = st.selectbox("Select slides theme", options=SLIDES_THEMES, index=0)
+
+                # src: https://gist.github.com/jsoma/629b9564af5b1e7fa62d0a3a0a47c296
+                cmd_str = f"pandoc -t revealjs -s -o {slides_path} {markdown_path} -V revealjs-url=https://unpkg.com/reveal.js/ -V theme={theme} --include-in-header=assets/slides.css "
+                import subprocess
+                subprocess.run(cmd_str, shell=True)
+                
+                # -- render slides
+                st.markdown(f"> {paper_topic}", unsafe_allow_html=True)
+                import streamlit.components.v1 as components
+                with open(slides_path, "r") as f:
+                    html = f.read()
+                components.html(html, width=950, height=769, scrolling=False)
+                
+
+                # -- download slides
+                with open(slides_path, "r") as f:
+                    st.download_button("Download slides", f, file_name=f"{paper_topic}.html", mime="text/html")
+
+
+                ##########################################
+                # CHATBOT assistant for a QA on the slides
+
+                # -- chatbot with GPT (APPENDIX start here)
+                if not hasattr(st.session_state, "chat_history"):
+                    st.session_state.chat_history = {}
+                
+                with st.expander(f"Chat with GPT about `{paper_topic}` within the context of the papers above"):
+                    # display chat history with st_chat as a chatbot-like conversation
+                    from streamlit_chat import message
+
+                    history_questions = list(st.session_state.chat_history.keys())
+                    for q in history_questions:                    
+                        message(st.session_state.chat_history[q]["user"], is_user=True, key=f"user:{q}")
+                        message(st.session_state.chat_history[q]["bot"], is_user=False, key=f"bot:{q}")
+
+                    # start a new chat
+                    user_prompt = st.text_input("Ask a question")
+                    if user_prompt:
+                        with st.spinner("GPT is thinking ..."):
+                            res, time_taken = builder.chatify(user_prompt=user_prompt, system_prompt=builder.system_prompt)
+                            res = res.choices[0].message.content
+                        took = f"\n\n<sub>Answered by `{builder.model_name}` in `{time_taken:.2f}` seconds.</sub>"
+                        st.markdown(f"> {res}", unsafe_allow_html=True)
+                        st.markdown(took, unsafe_allow_html=True)
+                        st.markdown("---")
+                        
+                        # add to history conversation
+                        st.session_state.chat_history[user_prompt] = {"user": user_prompt, "bot": res + took, "time_taken": time_taken}
+                    
+                    if st.button("Clear chat history"):
+                        st.session_state.chat_history = {}
+                    
+                    if st.checkbox("View prompt"):
+                        st.code(builder.system_prompt)
+
+                    
+                    if st.checkbox("Add Chat History as appendx to the slides"):
+                        markdown += f"""\n\n\n## Q/A Appendix\n\n"""
+                        for question, answer in st.session_state.chat_history.items():
+                            markdown += f"""\n\n\n## {question}\n"""
+                            for paragraph in answer["bot"].split("\n\n"):
+                                markdown += f"""\n\n\n####\n<sub>{paragraph}</sub>\n"""
+                            # markdown += f"""\n\n\n<sup>{took}</sup>\n"""
+                        
+                        with open(markdown_path, "w") as f:
+                            f.write(markdown)
+                        
+                        # -- convert to slides with Q/A appendix
+                        cmd_str = f"pandoc -t revealjs -s -o APPEDIX-{slides_path} {markdown_path} -V revealjs-url=https://unpkg.com/reveal.js/ -V theme={theme} --include-in-header=assets/slides.css "
+                        import subprocess
+                        subprocess.run(cmd_str, shell=True)
+                        # st.markdown(markdown, unsafe_allow_html=True)
+
+                        # -- render slides
+                        st.markdown(f"> {paper_topic}", unsafe_allow_html=True)
+                        import streamlit.components.v1 as components
+                        with open(f"APPEDIX-{slides_path}", "r") as f:
+                            html = f.read()
+                        components.html(html, width=950, height=769, scrolling=False)
+
+                        # -- download appendix slides
+                        with open(f"APPEDIX-{slides_path}", "r") as f:
+                            st.download_button("Download slides with Q/A appendix", f, file_name=f"APPEDIX-{paper_topic}.html", mime="text/html")
+
 
     @staticmethod
     @st.cache_resource
@@ -292,7 +456,7 @@ class PaperQA:
     """add a docstring here with URL to repo"""
 
     def __init__(self):  # , my_docs: List[str]):
-        self.docs = Docs()
+        self.docs = Docs(llm="gpt-4")
         # self.build_index(my_docs)
 
     # @lru_cache(maxsize=32)
