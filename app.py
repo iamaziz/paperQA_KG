@@ -21,9 +21,7 @@ Paper = namedtuple("Paper", ["title", "abstract", "year", "url", "authors"])
 
 def header():
     st.set_page_config(layout="wide")
-    st.sidebar.image("assets/EYP.png", width=250, use_column_width=True) #, caption="EYP")
-    st.sidebar.caption("EYP | 2023")
-    st.sidebar.markdown("""> ### **Q***uantitative*<br>**S***cientific*<br>**S***olutions*<br>QS2""", unsafe_allow_html=True)
+    st.sidebar.caption("Demo | 2023")
     st.header("Scientific Literature _Distilled_ ⚗️", anchor="top")
 
     st.markdown("#### <ins>**3 in 1**</ins>: _Distlling scientific literature abstracts about a specific topic_", unsafe_allow_html=True)
@@ -35,7 +33,6 @@ def header():
     # st.markdown(subheader, unsafe_allow_html=True)
 
     # st.sidebar.image("assets/graph.jpg", width=50)
-    # st.sidebar.image("assets/EYP.jpg", width=200)
     st.sidebar.caption("# Powered by")
     col = st.sidebar.columns(2)
     with col[0]:
